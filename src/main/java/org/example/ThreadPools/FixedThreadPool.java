@@ -1,10 +1,11 @@
 package org.example.ThreadPools;
-import java.util.LinkedList;
-import java.util.Queue;
+
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class FixedThreadPool implements ThreadPool {
     private final int poolCap;
-    private final Queue<Runnable> taskQueue = new LinkedList<>();
+    private final BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
     private final HelpThread[] threads;
 
     public FixedThreadPool(int poolSize) {
@@ -22,7 +23,11 @@ public class FixedThreadPool implements ThreadPool {
 
     @Override
     public synchronized void execute(Runnable runnable) {
-        taskQueue.add(runnable);
+        try {
+            taskQueue.put(runnable);
+        } catch (InterruptedException e) {
+            System.out.println(e.getMessage());;
+        }
         notify();
     }
 
@@ -30,7 +35,7 @@ public class FixedThreadPool implements ThreadPool {
         while (taskQueue.isEmpty()) {
             wait();
         }
-        return taskQueue.poll();
+        return taskQueue.take();
     }
 
     private class HelpThread extends Thread {

@@ -1,12 +1,12 @@
 package org.example.ThreadPools;
 
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class ScalableThreadPool implements ThreadPool {
     private final int minCap;
     private final int maxCap;
-    private final Queue<Runnable> taskQueue = new LinkedList<>();
+    private final BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
     private int threadsQuantity;
 
     public ScalableThreadPool(int minThreads, int maxThreads) {
@@ -24,7 +24,11 @@ public class ScalableThreadPool implements ThreadPool {
 
     @Override
     public synchronized void execute(Runnable runnable) {
-        taskQueue.add(runnable);
+        try {
+            taskQueue.put(runnable);
+        } catch (InterruptedException e) {
+            System.out.println(e.getMessage());;
+        }
         if (taskQueue.size() > threadsQuantity && threadsQuantity < maxCap) {
             threadsQuantity++;
             new HelpThread().start();
@@ -40,7 +44,7 @@ public class ScalableThreadPool implements ThreadPool {
             }
             wait();
         }
-        return taskQueue.poll();
+        return taskQueue.take();
     }
 
     private class HelpThread extends Thread {
