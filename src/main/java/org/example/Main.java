@@ -21,13 +21,14 @@ public class Main {
         // Пример с расширяемым пулом
         {
             ThreadPool scalableThreadPool = new ScalableThreadPool(2, 15);
+            scalableThreadPool.start();
+
             for (int i = 0; i < 30; i++) { // можно менять i для наглядности, чтобы увидеть сужение и расширения пула
                 int finalI = i;
                 scalableThreadPool.execute(() -> {
                     System.out.println("ScalableThreadPool: Task " + finalI + " has been completed in " + Thread.currentThread().getName());
                 });
             }
-            scalableThreadPool.start();
 
         }
     }
