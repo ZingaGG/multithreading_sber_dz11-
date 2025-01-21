@@ -33,7 +33,7 @@ public class ScalableThreadPool implements ThreadPool {
             System.out.println(e.getMessage());
         }
 
-        if (taskQueue.size() > threads.size() && threads.size() < maxCap) {
+        if (taskQueue.size() - 1 > threads.size() && threads.size() < maxCap) {
             HelpThread helpThread = new HelpThread();
             threads.add(helpThread);
             helpThread.start();
@@ -48,7 +48,7 @@ public class ScalableThreadPool implements ThreadPool {
                 threadToInterrupt.interrupt();
                 return null;
             }
-            wait();
+            return null;
         }
         return taskQueue.take();
     }
@@ -59,13 +59,12 @@ public class ScalableThreadPool implements ThreadPool {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     Runnable task = takeTask();
-                    if (task != null) {
-                        System.out.println("ScalableThreadPool: Thread " + Thread.currentThread().getName() + " has taken the task.");
-                        System.out.println("Quantity of threads in the moment - " + threads.size());
-                        task.run();
-                    } else {
+                    if(task == null){
                         break;
                     }
+                    System.out.println("ScalableThreadPool: Thread " + Thread.currentThread().getName() + " has taken the task.");
+                    System.out.println("Quantity of threads in the moment - " + threads.size());
+                    task.run();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
