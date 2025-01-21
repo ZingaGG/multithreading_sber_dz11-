@@ -1,15 +1,14 @@
 package org.example.ThreadPools;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class ScalableThreadPool implements ThreadPool {
     private final int minCap;
     private final int maxCap;
     private final BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
-    private final List<HelpThread> threads = new ArrayList<>();
+    private final CopyOnWriteArrayList<HelpThread> threads = new CopyOnWriteArrayList<>(); // Синхронизованная версия
 
     public ScalableThreadPool(int minThreads, int maxThreads) {
         this.minCap = minThreads;
@@ -27,13 +26,13 @@ public class ScalableThreadPool implements ThreadPool {
 
     @Override
     public synchronized void execute(Runnable runnable) {
-        try {
-            taskQueue.put(runnable);
-        } catch (InterruptedException e) {
-            System.out.println(e.getMessage());
+        if (!taskQueue.offer(runnable)) { // Метод put будет блокировать поток вызывающий метод, если очередь переполнена, а offer просто вернет false и поток будет не заблокирован -> меньше простоя, быстрее программа
+            System.out.println("Task queue is full, unable to add task.");
+            return;
         }
 
-        if (taskQueue.size() - 1 > threads.size() && threads.size() < maxCap) {
+        int allTasksInWork = taskQueue.size() + threads.size(); // Если я правильно понял, то вместо сайза заданий в очереди, мы считаем их + задания в работе
+        if (allTasksInWork > threads.size() && threads.size() < maxCap) {
             HelpThread helpThread = new HelpThread();
             threads.add(helpThread);
             helpThread.start();
@@ -48,9 +47,9 @@ public class ScalableThreadPool implements ThreadPool {
                 threadToInterrupt.interrupt();
                 return null;
             }
-            return null;
+            wait();
         }
-        return taskQueue.take();
+        return taskQueue.poll(); // take -> poll
     }
 
     private class HelpThread extends Thread {
@@ -59,11 +58,11 @@ public class ScalableThreadPool implements ThreadPool {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     Runnable task = takeTask();
-                    if(task == null){
+                    if (task == null) {
                         break;
                     }
                     System.out.println("ScalableThreadPool: Thread " + Thread.currentThread().getName() + " has taken the task.");
-                    System.out.println("Quantity of threads in the moment - " + threads.size());
+                    System.out.println("Quantity of threads at the moment - " + threads.size());
                     task.run();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
