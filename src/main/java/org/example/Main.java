@@ -7,16 +7,16 @@ import org.example.ThreadPools.ThreadPool;
 public class Main {
     public static void main(String[] args) {
         // Пример с фиксированным пулом
-//        {
-//            ThreadPool fixedThreadPool = new FixedThreadPool(3);
-//            for (int i = 0; i < 5; i++) {
-//                int finalI = i;
-//                fixedThreadPool.execute(() -> {
-//                    System.out.println("FixedThreadPool: Task " + finalI + " has been completed in " + Thread.currentThread().getName());
-//                });
-//            }
-//            fixedThreadPool.start();
-//        }
+        {
+            ThreadPool fixedThreadPool = new FixedThreadPool(3);
+            for (int i = 0; i < 5; i++) {
+                int finalI = i;
+                fixedThreadPool.execute(() -> {
+                    System.out.println("FixedThreadPool: Task " + finalI + " has been completed in " + Thread.currentThread().getName());
+                });
+            }
+            fixedThreadPool.start();
+        }
 
         // Пример с расширяемым пулом
         {
