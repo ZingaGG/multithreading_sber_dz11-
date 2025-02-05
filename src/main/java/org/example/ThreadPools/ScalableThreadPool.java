@@ -49,15 +49,12 @@ public class ScalableThreadPool implements ThreadPool {
                 try {
                     task = taskQueue.poll(idleTimeout, TimeUnit.MILLISECONDS);
 
-                    boolean isIdle = false;
                     if (task == null) {
-                        isIdle = true;
                         if (threads.size() > minCap) {
                             shutdownThread(this);
                             break;
                         }
                     } else {
-                        isIdle = false;
                         activeTasks.incrementAndGet();
                         System.out.println("ScalableThreadPool: Thread " + Thread.currentThread().getName() + " has taken the task.");
                         System.out.println("Quantity of threads at the moment - " + threads.size());
