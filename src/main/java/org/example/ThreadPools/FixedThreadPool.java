@@ -32,7 +32,7 @@ public class FixedThreadPool implements ThreadPool {
     }
 
     private synchronized Runnable takeTask() throws InterruptedException {
-        return taskQueue.poll();
+        return taskQueue.take();
     }
 
     private class HelpThread extends Thread {
@@ -41,9 +41,6 @@ public class FixedThreadPool implements ThreadPool {
             while (true) {
                 try {
                     Runnable task = takeTask();
-                    if(task == null){
-                        break;
-                    }
                     System.out.println("FixedThreadPool: Thread " + Thread.currentThread().getName() + " has taken the task.");
                     task.run();
                 } catch (InterruptedException e) {
