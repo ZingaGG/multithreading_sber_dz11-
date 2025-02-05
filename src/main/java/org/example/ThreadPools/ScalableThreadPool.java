@@ -1,14 +1,15 @@
 package org.example.ThreadPools;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ScalableThreadPool implements ThreadPool {
     private final int minCap;
     private final int maxCap;
+    private static final long idleTimeout = 5000;
     private final BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
-    private final CopyOnWriteArrayList<HelpThread> threads = new CopyOnWriteArrayList<>(); // Синхронизованная версия
+    private final CopyOnWriteArrayList<HelpThread> threads = new CopyOnWriteArrayList<>();
+    private final AtomicInteger activeTasks = new AtomicInteger(0);
 
     public ScalableThreadPool(int minThreads, int maxThreads) {
         this.minCap = minThreads;
@@ -26,49 +27,54 @@ public class ScalableThreadPool implements ThreadPool {
 
     @Override
     public synchronized void execute(Runnable runnable) {
-        if (!taskQueue.offer(runnable)) { // Метод put будет блокировать поток вызывающий метод, если очередь переполнена, а offer просто вернет false и поток будет не заблокирован -> меньше простоя, быстрее программа
+        if (!taskQueue.offer(runnable)) {
             System.out.println("Task queue is full, unable to add task.");
             return;
         }
 
-        int allTasksInWork = taskQueue.size() + threads.size(); // Если я правильно понял, то вместо сайза заданий в очереди, мы считаем их + задания в работе
+        int allTasksInWork = activeTasks.get() + taskQueue.size();
         if (allTasksInWork > threads.size() && threads.size() < maxCap) {
             HelpThread helpThread = new HelpThread();
             threads.add(helpThread);
             helpThread.start();
         }
-        notifyAll();
-    }
-
-    private synchronized Runnable takeTask() throws InterruptedException {
-        while (taskQueue.isEmpty()) {
-            if (threads.size() > minCap) {
-                HelpThread threadToInterrupt = threads.remove(threads.size() - 1);
-                threadToInterrupt.interrupt();
-                return null;
-            }
-            wait();
-        }
-        return taskQueue.poll(); // take -> poll
     }
 
     private class HelpThread extends Thread {
+
         @Override
         public void run() {
             while (!Thread.currentThread().isInterrupted()) {
+                Runnable task = null;
                 try {
-                    Runnable task = takeTask();
+                    task = taskQueue.poll(idleTimeout, TimeUnit.MILLISECONDS);
+
+                    boolean isIdle = false;
                     if (task == null) {
-                        break;
+                        isIdle = true;
+                        if (threads.size() > minCap) {
+                            shutdownThread(this);
+                            break;
+                        }
+                    } else {
+                        isIdle = false;
+                        activeTasks.incrementAndGet();
+                        System.out.println("ScalableThreadPool: Thread " + Thread.currentThread().getName() + " has taken the task.");
+                        System.out.println("Quantity of threads at the moment - " + threads.size());
+                        task.run();
+                        activeTasks.decrementAndGet();
                     }
-                    System.out.println("ScalableThreadPool: Thread " + Thread.currentThread().getName() + " has taken the task.");
-                    System.out.println("Quantity of threads at the moment - " + threads.size());
-                    task.run();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 }
             }
+        }
+
+        private void shutdownThread(HelpThread thread) {
+            thread.interrupt();
+            threads.remove(thread);
+            System.out.println("Thread " + thread.getName() + " has been shut down. Remaining threads: " + threads.size());
         }
     }
 }
